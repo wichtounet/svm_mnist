@@ -77,6 +77,30 @@ svm_problem make_problem(Labels& labels, Images& samples, std::size_t max = 0, b
         problem.x[s][features].index = -1;
         problem.x[s][features].value = 0.0;
     }
+
+    return problem;
+}
+
+svm_parameter default_parameters(){
+    svm_parameter parameters;
+
+    parameters.svm_type = C_SVC;
+    parameters.kernel_type = RBF;
+    parameters.degree = 3;
+    parameters.gamma = 0;
+    parameters.coef0 = 0;
+    parameters.nu = 0.5;
+    parameters.cache_size = 100;
+    parameters.C = 1;
+    parameters.eps = 1e-3;
+    parameters.p = 0.1;
+    parameters.shrinking = 1;
+    parameters.probability = 0;
+    parameters.nr_weight = 0;
+    parameters.weight_label = nullptr;
+    parameters.weight = nullptr;
+
+    return parameters;
 }
 
 void test_model(svm_problem& problem, svm_model* model){
@@ -147,27 +171,16 @@ int main(int argc, char* argv[]){
 
     std::cout << "Convert to libsvm format" << std::endl;
 
-    auto training_problem = make_problem(training_problem, dataset.training_labels, dataset.training_images, 10000);
-    auto test_problem = make_problem(test_problem, dataset.test_labels, dataset.test_images);
+    auto training_problem = make_problem(dataset.training_labels, dataset.training_images, 10000);
+    auto test_problem = make_problem(dataset.test_labels, dataset.test_images, 0, false);
 
-    svm_parameter mnist_parameters;
+    auto mnist_parameters = default_parameters();
+
     mnist_parameters.svm_type = C_SVC;
     mnist_parameters.kernel_type = RBF;
     mnist_parameters.probability = 1;
     mnist_parameters.C = 2.8;
     mnist_parameters.gamma = 0.0073;
-
-    //Default values
-    mnist_parameters.degree = 3;
-    mnist_parameters.coef0 = 0;
-    mnist_parameters.nu = 0.5;
-    mnist_parameters.cache_size = 2048;
-    mnist_parameters.eps = 1e-3;
-    mnist_parameters.p = 0.1;
-    mnist_parameters.shrinking = 1;
-    mnist_parameters.nr_weight = 0;
-    mnist_parameters.weight_label = nullptr;
-    mnist_parameters.weight = nullptr;
 
     //Make it quiet
     svm_set_print_string_function(&print_null);
