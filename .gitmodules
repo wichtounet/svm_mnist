@@ -1,3 +1,6 @@
 [submodule "mnist"]
 	path = mnist
 	url = https://github.com/wichtounet/mnist.git
+[submodule "nice_svm"]
+	path = nice_svm
+	url = https://github.com/wichtounet/nice_svm.git
