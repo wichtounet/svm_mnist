@@ -46,7 +46,7 @@ int main(int argc, char* argv[]){
 
     std::cout << "Convert to libsvm format" << std::endl;
 
-    auto training_problem = svm::make_problem(dataset.training_labels, dataset.training_images, 300);
+    auto training_problem = svm::make_problem(dataset.training_labels, dataset.training_images, 5000);
     auto test_problem = svm::make_problem(dataset.test_labels, dataset.test_images, 0, false);
 
     auto mnist_parameters = svm::default_parameters();
@@ -68,15 +68,11 @@ int main(int argc, char* argv[]){
     svm::model model;
 
     if(load){
-        std::cout << "Load SVM model" << std::endl;
-
         model = svm::load("mnist.svm");
 
         if(!model){
             std::cout << "Impossible to load model" << std::endl;
         }
-
-        std::cout << "SVM model loaded" << std::endl;
     }
 
     if(train){
