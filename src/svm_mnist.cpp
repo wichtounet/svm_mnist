@@ -15,8 +15,6 @@
 #include "mnist/mnist_reader.hpp"
 #include "mnist/mnist_utils.hpp"
 
-void print_null(const char *s) {}
-
 int main(int argc, char* argv[]){
     auto load = false;
     auto train = true;
@@ -60,19 +58,19 @@ int main(int argc, char* argv[]){
     mnist_parameters.gamma = 0.0073;
 
     //Make it quiet
-    svm_set_print_string_function(&print_null);
+    svm::make_quiet();
 
     //Make sure parameters are not too messed up
     if(!svm::check(training_problem, mnist_parameters)){
         return 1;
     }
 
-    svm_model* model = nullptr;
+    svm::model model;
 
     if(load){
         std::cout << "Load SVM model" << std::endl;
 
-        model = svm_load_model("mnist.svm");
+        model = svm::load("mnist.svm");
 
         if(!model){
             std::cout << "Impossible to load model" << std::endl;
@@ -89,7 +87,7 @@ int main(int argc, char* argv[]){
         svm::cross_validate(training_problem, mnist_parameters, 10);
     }
 
-    std::cout << "Number of classes: " << svm_get_nr_class(model) << std::endl;
+    std::cout << "Number of classes: " << model.classes() << std::endl;
 
     std::cout << "Test on training set" << std::endl;
     svm::test_model(training_problem, model);
@@ -100,14 +98,10 @@ int main(int argc, char* argv[]){
     if(!load){
         std::cout << "Save model" << std::endl;
 
-        if(svm_save_model("mnist.svm", model)){
+        if(!svm::save(model, "mnist.svm")){
             std::cout << "Unable to save model" << std::endl;
         }
     }
-
-    std::cout << "Release data" << std::endl;
-
-    svm_free_and_destroy_model(&model);
 
     return 0;
 }
