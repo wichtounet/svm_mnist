@@ -16,87 +16,6 @@
 #include "mnist/mnist_reader.hpp"
 #include "mnist/mnist_utils.hpp"
 
-struct rbf_grid {
-    double c_first = 2e-5;
-    double c_last = 2e-15;
-    double c_steps = 10;
-
-    double gamma_first = 2e-15;
-    double gamma_last = 2e3;
-    double gamma_steps = 10;
-};
-
-inline void rbf_grid_search(svm::problem& problem, svm_parameter& parameters, std::size_t n_fold, const std::vector<double>& c_values, const std::vector<double>& gamma_values){
-    std::cout << "Grid Search" << std::endl;
-
-    double max_accuracy = 0.0;
-    std::size_t max_C = 0;
-    std::size_t max_gamma = 0;
-
-    for(auto& C : c_values){
-        for(auto& gamma : gamma_values){
-            svm_parameter new_parameter = parameters;
-
-            new_parameter.C = C;
-            new_parameter.gamma = gamma;
-
-            auto accuracy = svm::cross_validate(problem, new_parameter, n_fold, true);
-
-            std::cout << "C=" << C << ",y=" << gamma << " -> " << accuracy << std::endl;
-
-            if(accuracy > max_accuracy){
-                max_accuracy = accuracy;
-                max_C = C;
-                max_gamma = gamma;
-            }
-        }
-    }
-
-    std::cout << "Best: C=" << max_C << ",y=" << max_gamma << " -> " << max_accuracy << std::endl;
-}
-
-//TODO Make linear version
-
-inline void rbf_grid_search_exp(svm::problem& problem, svm_parameter& parameters, std::size_t n_fold, const rbf_grid& g = rbf_grid()){
-    std::vector<double> c_values(g.c_steps);
-    std::vector<double> gamma_values(g.gamma_steps);
-
-    double c_first = g.c_first;
-    double gamma_first = g.gamma_first;
-
-    for(std::size_t i = 0; i < g.c_steps; ++i){
-        c_values[i] = c_first;
-        c_first *= std::pow(g.c_last / g.c_first, 1.0 / (g.c_steps - 1.0));
-    }
-
-    for(std::size_t i = 0; i < g.gamma_steps; ++i){
-        gamma_values[i] = gamma_first;
-        gamma_first *= std::pow(g.gamma_last / g.gamma_first, 1.0 / (g.gamma_steps - 1.0));
-    }
-
-    rbf_grid_search(problem, parameters, n_fold, c_values, gamma_values);
-}
-
-inline void rbf_grid_search_lin(svm::problem& problem, svm_parameter& parameters, std::size_t n_fold, const rbf_grid& g = rbf_grid()){
-    std::vector<double> c_values(g.c_steps);
-    std::vector<double> gamma_values(g.gamma_steps);
-
-    double c_first = g.c_first;
-    double gamma_first = g.gamma_first;
-
-    for(std::size_t i = 0; i < g.c_steps; ++i){
-        c_values[i] = c_first;
-        c_first += (g.c_last - g.c_first) / (g.c_steps - 1.0);
-    }
-
-    for(std::size_t i = 0; i < g.gamma_steps; ++i){
-        gamma_values[i] = gamma_first;
-        gamma_first += (g.gamma_last - g.gamma_first) / (g.gamma_steps - 1.0);
-    }
-
-    rbf_grid_search(problem, parameters, n_fold, c_values, gamma_values);
-}
-
 int main(int argc, char* argv[]){
     auto load = false;
     auto train = true;
@@ -168,22 +87,22 @@ int main(int argc, char* argv[]){
 
     if(grid){
         //1. Default grid
-        //rbf_grid_search_exp(training_problem, mnist_parameters, 5);
+        svm::rbf_grid_search_exp(training_problem, mnist_parameters, 5);
 
         //2. Coarse grid (based on the values of the first search)
 
-        rbf_grid coarse_grid;
+        svm::rbf_grid coarse_grid;
         coarse_grid.c_first = 2e-1;
         coarse_grid.c_last = 2e4;
 
         coarse_grid.gamma_first = 2e-9;
         coarse_grid.gamma_last = 2e-2;
 
-        //rbf_grid_search_exp(training_problem, mnist_parameters, 5, coarse_grid);
+        //svm::rbf_grid_search_exp(training_problem, mnist_parameters, 5, coarse_grid);
 
         //3. Coarser grid (based on the values of the second search)
 
-        rbf_grid coarser_grid;
+        svm::rbf_grid coarser_grid;
         coarser_grid.c_first = 1.0;
         coarser_grid.c_last = 10.0;
         coarser_grid.c_steps = 20;
@@ -192,7 +111,7 @@ int main(int argc, char* argv[]){
         coarser_grid.gamma_last = 5e-2;
         coarser_grid.gamma_steps = 20;
 
-        rbf_grid_search_exp(training_problem, mnist_parameters, 5, coarser_grid);
+        //svm::rbf_grid_search_exp(training_problem, mnist_parameters, 5, coarser_grid);
     }
 
     if(cross){
