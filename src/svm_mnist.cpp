@@ -9,16 +9,75 @@
 #include <random>
 #include <vector>
 #include <cassert>
+#include <cmath>
 
 #include "nice_svm.hpp"
 
 #include "mnist/mnist_reader.hpp"
 #include "mnist/mnist_utils.hpp"
 
+struct rbf_grid {
+    double c_first = 2e-5;
+    double c_last = 2e-15;
+    double c_steps = 10;
+
+    double gamma_first = 2e-15;
+    double gamma_last = 2e3;
+    double gamma_steps = 10;
+};
+
+//TODO Make linear version
+
+inline void rbf_grid_search_exp(svm::problem& problem, svm_parameter& parameters, std::size_t n_fold, const rbf_grid& g = rbf_grid()){
+    std::cout << "Grid Search" << std::endl;
+
+    std::vector<double> c_values(g.c_steps);
+    std::vector<double> gamma_values(g.gamma_steps);
+
+    double c_first = g.c_first;
+    double gamma_first = g.gamma_first;
+
+    for(std::size_t i = 0; i < g.c_steps; ++i){
+        c_values[i] = c_first;
+        c_first *= std::pow(g.c_last / g.c_first, 1.0 / (g.c_steps - 1.0));
+    }
+
+    for(std::size_t i = 0; i < g.gamma_steps; ++i){
+        gamma_values[i] = gamma_first;
+        gamma_first *= std::pow(g.gamma_last / g.gamma_first, 1.0 / (g.gamma_steps - 1.0));
+    }
+
+    double max_accuracy = 0.0;
+    std::size_t max_i = 0;
+    std::size_t max_j = 0;
+
+    for(std::size_t i = 0; i < g.c_steps; ++i){
+        for(std::size_t j = 0; j < g.gamma_steps; ++j){
+            svm_parameter new_parameter = parameters;
+
+            new_parameter.C = c_values[i];
+            new_parameter.gamma = gamma_values[j];
+
+            auto accuracy = svm::cross_validate(problem, new_parameter, n_fold, true);
+
+            std::cout << "C=" << c_values[i] << ",y=" << gamma_values[j] << " -> " << accuracy << std::endl;
+
+            if(accuracy > max_accuracy){
+                max_accuracy = accuracy;
+                max_i = i;
+                max_j = j;
+            }
+        }
+    }
+
+    std::cout << "Best: C=" << c_values[max_i] << ",y=" << gamma_values[max_j] << " -> " << max_accuracy << std::endl;
+}
+
 int main(int argc, char* argv[]){
     auto load = false;
     auto train = true;
     auto cross = false;
+    auto grid = false;
 
     for(int i = 1; i < argc; ++i){
         std::string command(argv[i]);
@@ -29,7 +88,11 @@ int main(int argc, char* argv[]){
         }
 
         if(command == "cross"){
-            load = true;
+            cross = true;
+        }
+
+        if(command == "grid"){
+            grid = true;
         }
     }
 
@@ -46,7 +109,7 @@ int main(int argc, char* argv[]){
 
     std::cout << "Convert to libsvm format" << std::endl;
 
-    auto training_problem = svm::make_problem(dataset.training_labels, dataset.training_images, 5000);
+    auto training_problem = svm::make_problem(dataset.training_labels, dataset.training_images, 2000);
     auto test_problem = svm::make_problem(dataset.test_labels, dataset.test_images, 0, false);
 
     auto mnist_parameters = svm::default_parameters();
@@ -79,8 +142,37 @@ int main(int argc, char* argv[]){
         model = svm::train(training_problem, mnist_parameters);
     }
 
+    if(grid){
+        //1. Default grid
+        //rbf_grid_search_exp(training_problem, mnist_parameters, 5);
+
+        //2. Coarse grid (based on the values of the first search)
+
+        rbf_grid coarse_grid;
+        coarse_grid.c_first = 2e-1;
+        coarse_grid.c_last = 2e4;
+
+        coarse_grid.gamma_first = 2e-9;
+        coarse_grid.gamma_last = 2e-2;
+
+        //rbf_grid_search_exp(training_problem, mnist_parameters, 5, coarse_grid);
+
+        //3. Coarser grid (based on the values of the second search)
+
+        rbf_grid coarser_grid;
+        coarser_grid.c_first = 1.0;
+        coarser_grid.c_last = 10.0;
+        coarser_grid.c_steps = 20;
+
+        coarser_grid.gamma_first = 2e-4;
+        coarser_grid.gamma_last = 5e-2;
+        coarser_grid.gamma_steps = 20;
+
+        rbf_grid_search_exp(training_problem, mnist_parameters, 5, coarser_grid);
+    }
+
     if(cross){
-        svm::cross_validate(training_problem, mnist_parameters, 10);
+        svm::cross_validate(training_problem, mnist_parameters, 5);
     }
 
     std::cout << "Number of classes: " << model.classes() << std::endl;
