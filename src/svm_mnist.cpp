@@ -26,7 +26,7 @@ struct rbf_grid {
     double gamma_steps = 10;
 };
 
-inline void rbf_grid_search(svm::problem& , svm_parameter& parameters, std::size_t , const std::vector<double>& c_values, const std::vector<double>& gamma_values){
+inline void rbf_grid_search(svm::problem& problem, svm_parameter& parameters, std::size_t n_fold, const std::vector<double>& c_values, const std::vector<double>& gamma_values){
     std::cout << "Grid Search" << std::endl;
 
     double max_accuracy = 0.0;
@@ -40,8 +40,7 @@ inline void rbf_grid_search(svm::problem& , svm_parameter& parameters, std::size
             new_parameter.C = C;
             new_parameter.gamma = gamma;
 
-            auto accuracy = 9.9;
-            //auto accuracy = svm::cross_validate(problem, new_parameter, n_fold, true);
+            auto accuracy = svm::cross_validate(problem, new_parameter, n_fold, true);
 
             std::cout << "C=" << C << ",y=" << gamma << " -> " << accuracy << std::endl;
 
