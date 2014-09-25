@@ -26,11 +26,39 @@ struct rbf_grid {
     double gamma_steps = 10;
 };
 
+inline void rbf_grid_search(svm::problem& , svm_parameter& parameters, std::size_t , const std::vector<double>& c_values, const std::vector<double>& gamma_values){
+    std::cout << "Grid Search" << std::endl;
+
+    double max_accuracy = 0.0;
+    std::size_t max_C = 0;
+    std::size_t max_gamma = 0;
+
+    for(auto& C : c_values){
+        for(auto& gamma : gamma_values){
+            svm_parameter new_parameter = parameters;
+
+            new_parameter.C = C;
+            new_parameter.gamma = gamma;
+
+            auto accuracy = 9.9;
+            //auto accuracy = svm::cross_validate(problem, new_parameter, n_fold, true);
+
+            std::cout << "C=" << C << ",y=" << gamma << " -> " << accuracy << std::endl;
+
+            if(accuracy > max_accuracy){
+                max_accuracy = accuracy;
+                max_C = C;
+                max_gamma = gamma;
+            }
+        }
+    }
+
+    std::cout << "Best: C=" << max_C << ",y=" << max_gamma << " -> " << max_accuracy << std::endl;
+}
+
 //TODO Make linear version
 
 inline void rbf_grid_search_exp(svm::problem& problem, svm_parameter& parameters, std::size_t n_fold, const rbf_grid& g = rbf_grid()){
-    std::cout << "Grid Search" << std::endl;
-
     std::vector<double> c_values(g.c_steps);
     std::vector<double> gamma_values(g.gamma_steps);
 
@@ -47,30 +75,27 @@ inline void rbf_grid_search_exp(svm::problem& problem, svm_parameter& parameters
         gamma_first *= std::pow(g.gamma_last / g.gamma_first, 1.0 / (g.gamma_steps - 1.0));
     }
 
-    double max_accuracy = 0.0;
-    std::size_t max_i = 0;
-    std::size_t max_j = 0;
+    rbf_grid_search(problem, parameters, n_fold, c_values, gamma_values);
+}
+
+inline void rbf_grid_search_lin(svm::problem& problem, svm_parameter& parameters, std::size_t n_fold, const rbf_grid& g = rbf_grid()){
+    std::vector<double> c_values(g.c_steps);
+    std::vector<double> gamma_values(g.gamma_steps);
+
+    double c_first = g.c_first;
+    double gamma_first = g.gamma_first;
 
     for(std::size_t i = 0; i < g.c_steps; ++i){
-        for(std::size_t j = 0; j < g.gamma_steps; ++j){
-            svm_parameter new_parameter = parameters;
-
-            new_parameter.C = c_values[i];
-            new_parameter.gamma = gamma_values[j];
-
-            auto accuracy = svm::cross_validate(problem, new_parameter, n_fold, true);
-
-            std::cout << "C=" << c_values[i] << ",y=" << gamma_values[j] << " -> " << accuracy << std::endl;
-
-            if(accuracy > max_accuracy){
-                max_accuracy = accuracy;
-                max_i = i;
-                max_j = j;
-            }
-        }
+        c_values[i] = c_first;
+        c_first += (g.c_last - g.c_first) / (g.c_steps - 1.0);
     }
 
-    std::cout << "Best: C=" << c_values[max_i] << ",y=" << gamma_values[max_j] << " -> " << max_accuracy << std::endl;
+    for(std::size_t i = 0; i < g.gamma_steps; ++i){
+        gamma_values[i] = gamma_first;
+        gamma_first += (g.gamma_last - g.gamma_first) / (g.gamma_steps - 1.0);
+    }
+
+    rbf_grid_search(problem, parameters, n_fold, c_values, gamma_values);
 }
 
 int main(int argc, char* argv[]){
